@@ -1,89 +1,50 @@
-var application_root = __dirname,
-  express = require("express"),
-  path = require("path"),
-  mongoose = require('mongoose');
+load('vertx.js');
 
-var app = express.createServer();
+// Configuration for the web server
+var webServerConf = {
 
-// model
-mongoose.connect('mongodb://localhost/my_database');
+  // Normal web server stuff
+  port: 8080,
+  host: 'localhost',
+  ssl: false,
 
-var Todo = mongoose.model('Todo', new mongoose.Schema({
-  text: String,
-  done: Boolean,
-  order: Number
-}));
+  // Configuration for the event bus client side bridge
+  // This bridges messages from the client side to the server side event bus
+  bridge: true,
 
-app.configure(function(){
-  app.use(express.bodyParser());
-  app.use(express.methodOverride());
-  app.use(app.router);
-  app.use(express.static(path.join(application_root, "public")));
-  app.use(express.errorHandler({ dumpExceptions: true, showStack: true }));
-  app.set('views', path.join(application_root, "views"));
-  app.set('view engine', 'jade')
-});
-
-app.get('/', function(req, res){
-  res.send('Hello World');
-});
-
-app.get('/todo', function(req, res){
-  res.render('todo', {title: "MongoDB Backed TODO App"});
-});
-
-app.get('/api/todos', function(req, res){
-  return Todo.find(function(err, todos) {
-    return res.send(todos);
-  });
-});
-
-app.get('/api/todos/:id', function(req, res){
-  return Todo.findById(req.params.id, function(err, todo) {
-    if (!err) {
-      return res.send(todo);
-    }
-  });
-});
-
-app.put('/api/todos/:id', function(req, res){
-  return Todo.findById(req.params.id, function(err, todo) {
-    todo.text = req.body.text;
-    todo.done = req.body.done;
-    todo.order = req.body.order;
-    return todo.save(function(err) {
-      if (!err) {
-        console.log("updated");
+  // This defines which messages from the client we will let through
+  // to the server side
+  permitted: [
+    {
+      address : 'vertx.mongopersistor',
+      match : {
+        action : 'find',
+        collection : 'todos'
       }
-      return res.send(todo);
-    });
-  });
-});
-
-app.post('/api/todos', function(req, res){
-  var todo;
-  todo = new Todo({
-    text: req.body.text,
-    done: req.body.done,
-    order: req.body.order
-  });
-  todo.save(function(err) {
-    if (!err) {
-      return console.log("created");
-    }
-  });
-  return res.send(todo);
-});
-
-app.delete('/api/todos/:id', function(req, res){
-  return Todo.findById(req.params.id, function(err, todo) {
-    return todo.remove(function(err) {
-      if (!err) {
-        console.log("removed");
-        return res.send('')
+    },
+    {
+      address : 'vertx.mongopersistor',
+      match : {
+        action : 'save',
+        collection : 'todos'
       }
-    });
-  });
+    },
+    {
+      address : 'vertx.mongopersistor',
+      match : {
+        action : 'delete',
+        collection : 'todos'
+      }
+    },
+    {
+      address : 'todos.broadcast.event'
+    }        
+      
+  ]
+};
+
+vertx.deployVerticle('mongo-persistor', null, 1, function() {
+  load('static_data.js');
 });
 
-app.listen(3000);
+vertx.deployVerticle('web-server', webServerConf);
