@@ -1,9 +1,6 @@
-// An example Backbone application contributed by
-// [JÃ©rÃ´me Gravel-Niquet](http://jgn.me/). .
-
-// Load the application once the DOM is ready, using `jQuery.ready`:
 $(function(){
 
+    // Initialize EventBus
     var eb = new vertx.EventBus('/eventbus');
     eb.onopen = function(){
         
@@ -24,13 +21,13 @@ $(function(){
     // Our basic **Todo** model has `text`, `order`, and `done` attributes.
     window.Todo = Backbone.Model.extend({
 
+        // MongoDB uses _id as default primary key
 	    idAttribute: "_id",
 
         eventBus: eb,
 
         initialize: function(){
-            this.on('change',this.changeEvent, this);
-            this.on('eventbus:update', this.serverChange, this);
+            this.bind('eventbus:update', this.serverChange, this);
         },
         
         // Default attributes for a todo item.
@@ -40,20 +37,15 @@ $(function(){
                 order: Todos.nextOrder()
             };
         },
-        
+
         serverChange: function (data) {
-            console.log('model serverchange');
             this.set(data);
         },
 
         // Toggle the `done` state of this todo item.
         toggle: function() {
             this.save({done: !this.get("done")});
-        },
-        changeEvent: function(hand){
-            console.log('change event');
         }
-
     });
 
     // Todo Collection
@@ -68,21 +60,11 @@ $(function(){
 
         eventBus: eb,
 
-        // Save all of the todo items under the `"todos"` namespace.
-        //localStorage: new Store("todos"),
-	    //  url: '/api/todos',
         initialize: function() {
-            this.on('eventbus:create', this.serverCreate, this);
-            this.on('eventbus:update', this.serverChange, this);
+            this.bind('eventbus:create', this.serverCreate, this);
+            this.bind('eventbus:update', this.serverChange, this);
         },
 
-        serverChange: function (data) {
-            console.log('collect serverChange');
-            if (data) {
-                var todo = this.get(data._id);
-                todo.set(data);
-            }
-        },
         serverCreate: function (data) {
             if (data) {
                 // make sure no duplicates, just in case
@@ -92,6 +74,13 @@ $(function(){
                 } else {
                     todo.set(data);
                 }
+            }
+        },
+
+        serverChange: function (data) {
+            if (data) {
+                var todo = this.get(data._id);
+                todo.set(data);
             }
         },
         
@@ -120,7 +109,7 @@ $(function(){
     });
 
     // Create our global collection of **Todos**.
-    window.Todos = new TodoList;
+    window.Todos = new TodoList();
 
     // Todo Item View
     // --------------
@@ -147,12 +136,11 @@ $(function(){
             this.model.bind('change', this.render, this);
             this.model.bind('destroy', this.remove, this);
             this.model.bind('sync', this.logSync, this);
-            Todos.on('eventbus:delete', this.serverDelete, this);
-            Todos.on('eventbus:create', this.serverCreate, this);
+            Todos.bind('eventbus:delete', this.serverDelete, this);
+            Todos.bind('eventbus:create', this.serverCreate, this);
         },
 
         serverDelete: function (data) {
-            console.log(data._id + ":" + this.model.id);
             if (data._id === this.model.id) {
                 Todos.remove(this.model);
                 this.model.clear({silent: true});
@@ -241,7 +229,7 @@ $(function(){
             Todos.bind('add',   this.addOne, this);
             Todos.bind('reset', this.addAll, this);
             Todos.bind('all',   this.render, this);
-            Todos.on('remove', this.serverDelete, this);
+            Todos.bind('remove', this.serverDelete, this);
         },
 
         // Re-rendering the App just means refreshing the statistics -- the rest
@@ -288,7 +276,7 @@ $(function(){
             var val = this.input.val();
             tooltip.fadeOut();
             if (this.tooltipTimeout) clearTimeout(this.tooltipTimeout);
-            if (val == '' || val == this.input.attr('placeholder')) return;
+            if (val === '' || val == this.input.attr('placeholder')) return;
             var show = function(){ tooltip.show().fadeIn(); };
             this.tooltipTimeout = _.delay(show, 1000);
         }
@@ -296,6 +284,6 @@ $(function(){
     });
 
     // Finally, we kick things off by creating the **App**.
-    window.App = new AppView;
+    window.App = new AppView();
 
 });

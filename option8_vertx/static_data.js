@@ -17,18 +17,12 @@ var todos = [
   }
 ];
 
-var myHandler = function(message) {
-    vertx.logger.info('I received a message: ' + JSON.stringify(message));
-    //eb.send('todos', {text: 'I got a message!'});
-};
-
-eb.registerHandler(pa, myHandler);
-
 // First delete everything
-
 eb.send(pa, {action: 'delete', collection: 'todos', matcher: {}});
 
-// Insert albums - in real life price would probably be stored in a different collection, but, hey, this is a demo.
+eb.registerHandler(pa, function(message) {
+    vertx.logger.info('Received a message: ' + JSON.stringify(message));
+});
 
 for (var i = 0; i < todos.length; i++) {
   eb.send(pa, {
@@ -37,9 +31,3 @@ for (var i = 0; i < todos.length; i++) {
     document: todos[i]
   });
 }
-
-/**
-eb.registerHandler('todos.broadcast.events', function(message){
-    vertx.logger.info('I am Todos. I received a message ' + message.todo);
-});
-**/
