@@ -1,5 +1,5 @@
 load('vertx.js');
-vertx.deployModule('vertx.mongo-persistor-v1.0', null, 1, function() {
+vertx.deployModule('vertx.mongo-persistor-v1.2', null, 1, function() {
     load('static_data.js');
 });
 
